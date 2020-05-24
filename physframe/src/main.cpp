@@ -5,6 +5,7 @@
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <stdlib.h>
+#include <fxsrintrin.h>
 #include <stdio.h>
 #include <unistd.h>
 #include "memutils.h"
@@ -92,50 +93,41 @@ bool hook_PhysIsInCallback( )
 
 
 
-typedef void		 (*	tPhysFrame ) 						( float ) ;
+typedef int		 (*	tPhysFrame ) 						( float ) ;
 						tPhysFrame 		original_PhysFrame	= NULL;
 MologieDetours::Detour< tPhysFrame>*	detour_PhysFrame	= NULL;
 
+double phys_seconds;
 
-void hook_PhysFrame( float deltaTime )
+int hook_PhysFrame( float deltaTime )
 {
-	if (true) {
-		return detour_PhysFrame->GetOriginalFunction()( deltaTime );
-	}
+	struct
+	{
+		unsigned short cwd;
+		unsigned short swd;
+		unsigned short twd;
+		unsigned short fop;
+		unsigned int fip;
+		unsigned int fcs;
+		unsigned int foo;
+		unsigned int fos;
+		unsigned int mxcsr;
+		unsigned int mxcsr_mask;
+		unsigned int st_space[32];
+		unsigned int xmm_space[32];
+		unsigned int padding[56];
+	} __attribute__ ((aligned (16))) fxsave;
+	  
+	__builtin_ia32_fxsave(&fxsave);
+	double start = Plat_FloatTime();
+	__builtin_ia32_fxrstor(&fxsave);
+	int ret = detour_PhysFrame->GetOriginalFunction()( deltaTime );
+
+	__builtin_ia32_fxsave(&fxsave);
+	phys_seconds = Plat_FloatTime() - start;
+	__builtin_ia32_fxrstor(&fxsave);
 	
-	if (!L) {
-		return detour_PhysFrame->GetOriginalFunction()( deltaTime );
-	}
-	
-	lua_getglobal(L, "PhysFrame");
-	
-	if (lua_isnil(L,-1)) {
-		lua_pop(L, 1);
-		return detour_PhysFrame->GetOriginalFunction()( deltaTime );
-	}
-	
-	if (lua_pcall(L, 0, 1, 0) == 0) {
-		
-		if (lua_isboolean(L, -1)) {
-			bool ret = lua_toboolean(L, -1);
-			
-			// block physframe
-			if (ret) {
-				lua_pop(L, 1);
-				return;
-			}
-		}
-		
-		lua_pop(L, 1); // pop result
-		
-	} else { // errored
-		const char* err = lua_tostring(L, -1);
-		Warning("PhysFrame: %s\n",err);
-		lua_pop(L, 1); // pop error
-		
-	}
-	
-	return detour_PhysFrame->GetOriginalFunction()( deltaTime );
+	return ret;
 }
 
 
@@ -200,11 +192,19 @@ int GetShouldSimulate( lua_State* L )
 	return 1;
 }
 
+int GetPhysFrameLength( lua_State* L ) 
+{
+	
+	lua_pushnumber(L,phys_seconds);
+	return 1;
+}
+
 extern "C" __attribute__( ( visibility("default") ) ) int gmod13_open( lua_State* LL )
 {
 	L=LL;
 
 
+	
 	void *lHandle = dlopen( "garrysmod/bin/server_srv.so", RTLD_LAZY );
 	if ( lHandle )
 	{
@@ -230,6 +230,24 @@ extern "C" __attribute__( ( visibility("default") ) ) int gmod13_open( lua_State
 			}
 		} else {
 			Warning("PhysOnCleanupDeleteList: Detour failed: Signature not found. (plugin needs updating)\n");
+		}
+		
+
+		original_PhysFrame = (tPhysFrame)ResolveSymbol( lHandle, "_ZL9PhysFramef" );
+		if (original_PhysFrame) {
+			try {
+				detour_PhysFrame = new MologieDetours::Detour<tPhysFrame>(original_PhysFrame, hook_PhysFrame);
+				
+							
+				lua_pushcfunction(L, GetPhysFrameLength);
+				lua_setglobal(L, "GetPhysFrameLength");
+				
+			}
+			catch(MologieDetours::DetourException &e) {
+				Warning("PhysFrame: Detour failed: Internal error?\n");
+			}
+		} else {
+			Warning("PhysFrame: Detour failed: Signature not found. (plugin needs updating)\n");
 		}
 		
 		original_PhysIsInCallback = (tPhysIsInCallback)ResolveSymbol( lHandle, "_Z16PhysIsInCallbackv" );
