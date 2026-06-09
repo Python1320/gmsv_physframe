@@ -39,4 +39,4 @@ Intercepts `PhysFrame`, `PhysIsInCallback`, `PhysOnCleanupDeleteList`, and "IVP 
 
 ## Thanks
 
-Garry, FreezeBug, MetaMan, CapsAdmin, BlueShank, etc, etc etc
+Garry, [Metastruct](https://metastruct.github.io), FreezeBug, BlueShank, MetaMan, SpiralP, CapsAdmin, etc, etc etc
