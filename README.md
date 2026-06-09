@@ -4,6 +4,7 @@
 > HERE BE DRAGONS
 
 *Hooks into Source engine physics to provide crash mitigation / physics simulation control.*
+*Used on [Metastruct](https://metastruct.github.io) for past ~10 years for crash mitigation.*
 
 Intercepts `PhysFrame`, `PhysIsInCallback`, `PhysOnCleanupDeleteList`, and "IVP tree expansion" to:
 - Pause/unpause physics simulation from Lua (`_G.SetShouldSimulate`, `_G.GetShouldSimulate`)
