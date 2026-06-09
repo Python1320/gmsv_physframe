@@ -6,6 +6,8 @@
 *Hooks into Source engine physics to provide crash mitigation / physics simulation control.*
 *Used on [Metastruct](https://metastruct.github.io) for past ~10 years for crash mitigation.*
 
+<img width="782" height="393" alt="image" src="https://github.com/user-attachments/assets/06685af3-5448-4e51-b80d-1749a9086338" />
+
 Intercepts `PhysFrame`, `PhysIsInCallback`, `PhysOnCleanupDeleteList`, and "IVP tree expansion" to:
 - Pause/unpause physics simulation from Lua (`_G.SetShouldSimulate`, `_G.GetShouldSimulate`)
 - Time individual physics frames (`GetPhysFrameLength`) ([now implemented in GMod](https://github.com/Facepunch/garrysmod-requests/issues/2042))
